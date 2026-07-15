@@ -1,0 +1,16 @@
+# Blueprint Render.com — deploy otomatis LaundryPay
+# Data disimpan di disk permanen (folder /data) agar tidak hilang saat restart.
+services:
+  - type: web
+    name: laundrypay
+    runtime: node
+    plan: starter          # disk permanen butuh paket berbayar termurah (starter)
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DB_PATH
+        value: /data/laundry.db
+    disk:
+      name: laundry-data
+      mountPath: /data
+      sizeGB: 1

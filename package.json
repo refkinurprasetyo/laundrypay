@@ -1,0 +1,13 @@
+{
+  "name": "laundrypay",
+  "version": "1.0.0",
+  "description": "Aplikasi Pembayaran Laundry - backend Node.js + database SQLite + PWA",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}
