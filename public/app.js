@@ -1,4 +1,4 @@
-// app.js — Logika frontend LaundryPay (vanilla JS, tanpa framework)
+// app.js — Frontend LaundryPay (vanilla JS, dengan login & peran)
 "use strict";
 
 const STATUS = {
@@ -7,9 +7,12 @@ const STATUS = {
   diambil: { label: "Diambil",  cls: "b-diambil" },
 };
 
+let me = null;          // { id, username, role }
 let services = [];
 let orders = [];
+let users = [];
 let cari = "";
+let activeTab = "pesanan";
 
 // ---------- util ----------
 const rupiah = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
@@ -18,13 +21,15 @@ const tglID = (iso) =>
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const svcById = (id) => services.find((s) => s.id === id) || {};
+const isOwner = () => me && me.role === "owner";
 
 async function api(method, url, body) {
   const opt = { method, headers: {} };
   if (body) { opt.headers["Content-Type"] = "application/json"; opt.body = JSON.stringify(body); }
   const res = await fetch(url, opt);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Gagal terhubung ke server");
+  if (res.status === 401) { showLogin(); throw new Error(data.error || "Sesi berakhir, silakan login"); }
+  if (!res.ok) throw new Error(data.error || "Terjadi kesalahan");
   return data;
 }
 
@@ -33,22 +38,95 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.classList.remove("show"), 2200);
+  toast._t = setTimeout(() => t.classList.remove("show"), 2400);
 }
 
-// ---------- muat data ----------
-async function load() {
+// ---------- auth flow ----------
+function showLogin() {
+  document.getElementById("appView").style.display = "none";
+  document.getElementById("loginView").style.display = "flex";
+}
+function showApp() {
+  document.getElementById("loginView").style.display = "none";
+  document.getElementById("appView").style.display = "block";
+}
+
+async function init() {
   try {
-    [services, orders] = await Promise.all([
-      api("GET", "/api/services"),
-      api("GET", "/api/orders"),
-    ]);
-    renderDaftar();
-    renderLaporan();
-  } catch (e) {
-    document.getElementById("daftar").innerHTML =
-      `<div class="empty">Gagal memuat data.<br>${esc(e.message)}</div>`;
+    me = await api("GET", "/api/me");
+    await startApp();
+  } catch {
+    showLogin();
   }
+}
+
+async function startApp() {
+  document.getElementById("uName").textContent = me.username;
+  document.getElementById("uRole").textContent = me.role;
+  showApp();
+  buildTabs();
+  activeTab = "pesanan";
+  await loadCore();
+  switchTab("pesanan");
+}
+
+async function loadCore() {
+  [services, orders] = await Promise.all([
+    api("GET", "/api/services"),
+    api("GET", "/api/orders"),
+  ]);
+  renderDaftar();
+}
+
+document.getElementById("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const err = document.getElementById("loginErr");
+  err.style.display = "none";
+  try {
+    me = await api("POST", "/api/login", {
+      username: document.getElementById("loginUser").value,
+      password: document.getElementById("loginPass").value,
+    });
+    document.getElementById("loginPass").value = "";
+    await startApp();
+  } catch (e2) {
+    err.textContent = e2.message;
+    err.style.display = "block";
+  }
+});
+
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  try { await api("POST", "/api/logout"); } catch {}
+  me = null;
+  showLogin();
+});
+
+// ---------- tabs (per peran) ----------
+function buildTabs() {
+  const defs = [{ k: "pesanan", label: "📋 Pesanan" }];
+  if (isOwner()) {
+    defs.push({ k: "laporan", label: "📈 Laporan" });
+    defs.push({ k: "layanan", label: "🏷️ Layanan" });
+    defs.push({ k: "akun", label: "👥 Akun" });
+  }
+  const el = document.getElementById("tabs");
+  el.innerHTML = defs.map((t) =>
+    `<button class="tab" data-tab="${t.k}">${t.label}</button>`).join("");
+  el.querySelectorAll(".tab").forEach((b) =>
+    b.addEventListener("click", () => switchTab(b.dataset.tab)));
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll(".tab").forEach((x) =>
+    x.classList.toggle("active", x.dataset.tab === tab));
+  ["pesanan", "laporan", "layanan", "akun"].forEach((k) => {
+    const v = document.getElementById("view-" + k);
+    if (v) v.style.display = k === tab ? "" : "none";
+  });
+  if (tab === "laporan") renderLaporan();
+  if (tab === "layanan") renderLayanan();
+  if (tab === "akun") renderAkun();
 }
 
 // ---------- daftar pesanan ----------
@@ -58,10 +136,7 @@ function renderDaftar() {
     (o) => o.nama.toLowerCase().includes(q) || o.id.toLowerCase().includes(q)
   );
   const el = document.getElementById("daftar");
-  if (list.length === 0) {
-    el.innerHTML = `<div class="empty">Belum ada pesanan.</div>`;
-    return;
-  }
+  if (list.length === 0) { el.innerHTML = `<div class="empty">Belum ada pesanan.</div>`; return; }
   el.innerHTML = list.map((o) => {
     const st = STATUS[o.status] || STATUS.proses;
     const bayar = o.lunas
@@ -71,6 +146,8 @@ function renderDaftar() {
       `<option value="${k}" ${k === o.status ? "selected" : ""}>${v.label}</option>`).join("");
     const tombolBayar = o.lunas ? "" :
       `<button class="chip chip-green" onclick="bukaBayar('${o.id}')">💵 Bayar</button>`;
+    const tombolHapus = isOwner()
+      ? `<button class="chip chip-red" onclick="hapus('${o.id}')">🗑️</button>` : "";
     return `
       <div class="card">
         <div class="row-top">
@@ -87,16 +164,16 @@ function renderDaftar() {
           <div class="price">${rupiah(o.subtotal)}</div>
         </div>
         <div class="actions">
-          <select class="mini" onchange="ubahStatus('${o.id}', this.value)">${opts}</select>
+          <select onchange="ubahStatus('${o.id}', this.value)">${opts}</select>
           ${tombolBayar}
           <button class="chip chip-gray" onclick="bukaStruk('${o.id}')">🧾 Struk</button>
-          <button class="chip chip-red" onclick="hapus('${o.id}')">🗑️</button>
+          ${tombolHapus}
         </div>
       </div>`;
   }).join("");
 }
 
-// ---------- laporan ----------
+// ---------- laporan (owner) ----------
 function renderLaporan() {
   api("GET", "/api/report").then((r) => {
     document.getElementById("stats").innerHTML = `
@@ -104,10 +181,9 @@ function renderLaporan() {
       <div class="stat s2"><div>📈</div><div class="lbl">Pendapatan Bulan Ini</div><div class="val">${rupiah(r.totalBulan)}</div></div>
       <div class="stat s3"><div>👛</div><div class="lbl">Total Diterima</div><div class="val">${rupiah(r.totalSemua)}</div></div>
       <div class="stat s4"><div>⏳</div><div class="lbl">Belum Terbayar</div><div class="val">${rupiah(r.belumLunas)}</div></div>`;
-    document.getElementById("tblTitle").textContent = `Riwayat Transaksi Lunas (${r.jmlLunas})`;
+    document.getElementById("tblTitle").innerHTML = `<span>Riwayat Transaksi Lunas (${r.jmlLunas})</span>`;
     const lunas = orders.filter((o) => o.lunas);
-    const body = document.getElementById("tblBody");
-    body.innerHTML = lunas.length === 0
+    document.getElementById("tblBody").innerHTML = lunas.length === 0
       ? `<tr><td colspan="5" class="empty">Belum ada transaksi lunas.</td></tr>`
       : lunas.map((o) => `
         <tr>
@@ -117,7 +193,152 @@ function renderLaporan() {
           <td>${o.metode === "transfer" ? "💳" : "💵"} ${esc(o.metode || "-")}</td>
           <td class="r price">${rupiah(o.subtotal)}</td>
         </tr>`).join("");
-  });
+  }).catch((e) => toast(e.message));
+}
+
+// ---------- kelola layanan (owner) ----------
+function renderLayanan() {
+  const el = document.getElementById("daftarLayanan");
+  el.innerHTML = services.length === 0
+    ? `<div class="empty">Belum ada layanan.</div>`
+    : services.map((s) => `
+      <div class="mrow">
+        <div class="info">
+          <b>${esc(s.nama)}</b>
+          <div class="meta">${rupiah(s.harga)} / ${esc(s.satuan)}</div>
+        </div>
+        <button class="iconbtn" onclick="bukaLayananForm('${s.id}')">✏️ Ubah</button>
+        <button class="iconbtn red" onclick="hapusLayanan('${s.id}')">🗑️</button>
+      </div>`).join("");
+}
+
+function bukaLayananForm(id) {
+  const s = id ? svcById(id) : { nama: "", harga: "", satuan: "kg" };
+  openModal(`
+    <div class="modal-head"><h3>${id ? "Ubah" : "Tambah"} Layanan</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <label class="f">Nama Layanan *</label>
+      <input class="inp" id="svcNama" value="${esc(s.nama)}" placeholder="mis. Cuci + Setrika" />
+      <div class="two">
+        <div>
+          <label class="f">Harga (Rp) *</label>
+          <input class="inp" id="svcHarga" type="number" min="0" value="${s.harga}" placeholder="0" />
+        </div>
+        <div>
+          <label class="f">Satuan</label>
+          <input class="inp" id="svcSatuan" value="${esc(s.satuan || "kg")}" placeholder="kg / pcs" />
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="simpanLayanan('${id || ""}')">Simpan</button>
+    </div>`);
+}
+
+async function simpanLayanan(id) {
+  const body = {
+    nama: document.getElementById("svcNama").value.trim(),
+    harga: Number(document.getElementById("svcHarga").value),
+    satuan: document.getElementById("svcSatuan").value.trim() || "kg",
+  };
+  if (!body.nama) return toast("Nama layanan wajib diisi");
+  if (!(body.harga >= 0)) return toast("Harga tidak valid");
+  try {
+    if (id) {
+      const upd = await api("PATCH", "/api/services/" + id, body);
+      services = services.map((s) => (s.id === id ? upd : s));
+    } else {
+      services.push(await api("POST", "/api/services", body));
+    }
+    closeModal();
+    renderLayanan();
+    toast("Layanan tersimpan");
+  } catch (e) { toast(e.message); }
+}
+
+async function hapusLayanan(id) {
+  if (!confirm("Hapus layanan ini? Pesanan lama tidak terpengaruh.")) return;
+  try {
+    await api("DELETE", "/api/services/" + id);
+    services = services.filter((s) => s.id !== id);
+    renderLayanan();
+    toast("Layanan dihapus");
+  } catch (e) { toast(e.message); }
+}
+
+// ---------- kelola akun (owner) ----------
+async function renderAkun() {
+  try { users = await api("GET", "/api/users"); } catch (e) { return toast(e.message); }
+  document.getElementById("daftarAkun").innerHTML = users.map((u) => `
+    <div class="mrow">
+      <div class="info">
+        <b>${esc(u.username)}</b> ${u.id === me.id ? '<span class="rolechip" style="background:#e0f2fe;color:#0369a1">Anda</span>' : ""}
+        <div class="meta">Peran: ${u.role === "owner" ? "Owner (akses penuh)" : "Kasir (input & bayar)"}</div>
+      </div>
+      <button class="iconbtn" onclick="bukaGantiPassword(${u.id}, '${esc(u.username)}')">🔑</button>
+      ${u.id === me.id ? "" : `<button class="iconbtn red" onclick="hapusAkun(${u.id})">🗑️</button>`}
+    </div>`).join("");
+}
+
+function bukaAkunForm() {
+  openModal(`
+    <div class="modal-head"><h3>Akun Baru</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <label class="f">Username *</label>
+      <input class="inp" id="akUser" placeholder="mis. kasir1" autocomplete="off" />
+      <label class="f">Password *</label>
+      <input class="inp" id="akPass" type="text" placeholder="minimal 4 karakter" autocomplete="off" />
+      <label class="f">Peran</label>
+      <select class="inp" id="akRole">
+        <option value="kasir">Kasir — input pesanan, bayar, struk</option>
+        <option value="owner">Owner — akses penuh</option>
+      </select>
+      <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="simpanAkun()">Buat Akun</button>
+    </div>`);
+}
+
+async function simpanAkun() {
+  const body = {
+    username: document.getElementById("akUser").value.trim(),
+    password: document.getElementById("akPass").value,
+    role: document.getElementById("akRole").value,
+  };
+  if (!body.username) return toast("Username wajib diisi");
+  if (body.password.length < 4) return toast("Password minimal 4 karakter");
+  try {
+    await api("POST", "/api/users", body);
+    closeModal();
+    renderAkun();
+    toast("Akun dibuat");
+  } catch (e) { toast(e.message); }
+}
+
+function bukaGantiPassword(id, username) {
+  openModal(`
+    <div class="modal-head"><h3>Ganti Password</h3><button class="x" onclick="closeModal()">×</button></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:6px">Akun: <b>${esc(username)}</b></p>
+      <label class="f">Password Baru *</label>
+      <input class="inp" id="npPass" type="text" placeholder="minimal 4 karakter" autocomplete="off" />
+      <button class="btn btn-primary" style="width:100%;margin-top:18px" onclick="simpanPassword(${id})">Simpan</button>
+    </div>`);
+}
+
+async function simpanPassword(id) {
+  const password = document.getElementById("npPass").value;
+  if (password.length < 4) return toast("Password minimal 4 karakter");
+  try {
+    await api("PATCH", "/api/users/" + id, { password });
+    closeModal();
+    toast("Password diperbarui");
+  } catch (e) { toast(e.message); }
+}
+
+async function hapusAkun(id) {
+  if (!confirm("Hapus akun ini?")) return;
+  try {
+    await api("DELETE", "/api/users/" + id);
+    renderAkun();
+    toast("Akun dihapus");
+  } catch (e) { toast(e.message); }
 }
 
 // ---------- modal helper ----------
@@ -131,6 +352,7 @@ function closeModal() { document.getElementById("modalRoot").innerHTML = ""; }
 
 // ---------- form pesanan baru ----------
 function bukaForm() {
+  if (services.length === 0) return toast("Belum ada layanan. Minta owner menambah layanan dulu.");
   const opts = services.map((s) =>
     `<option value="${s.id}">${esc(s.nama)} — ${rupiah(s.harga)}/${esc(s.satuan)}</option>`).join("");
   openModal(`
@@ -173,29 +395,24 @@ async function simpanPesanan() {
   const qty = Number(document.getElementById("fQty").value);
   if (!nama) return toast("Nama pelanggan wajib diisi");
   if (!(qty > 0)) return toast("Jumlah harus lebih dari 0");
-  const body = {
-    nama,
-    hp: document.getElementById("fHp").value.trim(),
-    layananId: document.getElementById("fLayanan").value,
-    qty,
-    status: document.getElementById("fStatus").value,
-  };
   try {
-    const baru = await api("POST", "/api/orders", body);
+    const baru = await api("POST", "/api/orders", {
+      nama, hp: document.getElementById("fHp").value.trim(),
+      layananId: document.getElementById("fLayanan").value, qty,
+      status: document.getElementById("fStatus").value,
+    });
     orders.unshift(baru);
     closeModal();
     renderDaftar();
-    renderLaporan();
     toast("Pesanan tersimpan");
   } catch (e) { toast(e.message); }
 }
 
-// ---------- ubah status / hapus ----------
+// ---------- status / hapus / bayar / struk ----------
 async function ubahStatus(id, status) {
   try {
     const upd = await api("PATCH", "/api/orders/" + id, { status });
     orders = orders.map((o) => (o.id === id ? upd : o));
-    renderLaporan();
   } catch (e) { toast(e.message); }
 }
 
@@ -205,12 +422,10 @@ async function hapus(id) {
     await api("DELETE", "/api/orders/" + id);
     orders = orders.filter((o) => o.id !== id);
     renderDaftar();
-    renderLaporan();
     toast("Pesanan dihapus");
   } catch (e) { toast(e.message); }
 }
 
-// ---------- pembayaran ----------
 function bukaBayar(id) {
   const o = orders.find((x) => x.id === id);
   if (!o) return;
@@ -234,13 +449,11 @@ async function konfirmasiBayar(id, metode) {
     const upd = await api("PATCH", "/api/orders/" + id, { lunas: true, metode });
     orders = orders.map((o) => (o.id === id ? upd : o));
     renderDaftar();
-    renderLaporan();
     bukaStruk(id);
     toast("Pembayaran berhasil");
   } catch (e) { toast(e.message); }
 }
 
-// ---------- struk ----------
 function bukaStruk(id) {
   const o = orders.find((x) => x.id === id);
   if (!o) return;
@@ -271,23 +484,12 @@ function bukaStruk(id) {
     </div>`);
 }
 
-// ---------- tab & event ----------
-document.querySelectorAll(".tab").forEach((t) => {
-  t.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
-    t.classList.add("active");
-    const tab = t.dataset.tab;
-    document.getElementById("view-pesanan").style.display = tab === "pesanan" ? "" : "none";
-    document.getElementById("view-laporan").style.display = tab === "laporan" ? "" : "none";
-    if (tab === "laporan") renderLaporan();
-  });
-});
+// ---------- events ----------
 document.getElementById("btnBaru").addEventListener("click", bukaForm);
+document.getElementById("btnLayananBaru").addEventListener("click", () => bukaLayananForm(""));
+document.getElementById("btnAkunBaru").addEventListener("click", bukaAkunForm);
 document.getElementById("cari").addEventListener("input", (e) => { cari = e.target.value; renderDaftar(); });
 
-// PWA service worker
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").catch(() => {});
-}
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 
-load();
+init();

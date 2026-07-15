@@ -13,12 +13,18 @@
     :root { --sky:#0284c7; --sky2:#06b6d4; --slate:#334155; --muted:#64748b; --line:#e2e8f0; --bg:#f1f5f9; }
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--slate); padding-bottom: env(safe-area-inset-bottom); }
     header { background: linear-gradient(90deg, var(--sky), var(--sky2)); color: #fff; padding: 14px 16px; padding-top: calc(14px + env(safe-area-inset-top)); display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 20; }
-    header .logo { background: rgba(255,255,255,.2); width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; }
+    header .logo { background: rgba(255,255,255,.2); width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; flex: none; }
     header h1 { font-size: 18px; line-height: 1.1; }
     header p { font-size: 11px; color: #e0f2fe; }
+    .userbox { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .userbox .who { text-align: right; font-size: 12px; line-height: 1.2; }
+    .userbox .who b { font-size: 13px; }
+    .rolechip { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: rgba(255,255,255,.25); text-transform: uppercase; letter-spacing: .5px; }
+    .logout { background: rgba(255,255,255,.18); border: none; color: #fff; padding: 7px 10px; border-radius: 9px; font-size: 12px; cursor: pointer; font-weight: 600; }
+    .logout:active { background: rgba(255,255,255,.3); }
     .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
-    .tabs { display: flex; gap: 8px; max-width: 720px; margin: 12px auto 0; padding: 0 16px; }
-    .tab { flex: none; display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; border: none; background: #fff; color: var(--muted); cursor: pointer; }
+    .tabs { display: flex; gap: 8px; max-width: 720px; margin: 12px auto 0; padding: 0 16px; overflow-x: auto; }
+    .tab { flex: none; display: flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; font-size: 14px; font-weight: 600; border: none; background: #fff; color: var(--muted); cursor: pointer; white-space: nowrap; }
     .tab.active { background: var(--sky); color: #fff; box-shadow: 0 2px 6px rgba(2,132,199,.3); }
     .toolbar { display: flex; gap: 10px; margin-bottom: 14px; }
     .search { flex: 1; position: relative; }
@@ -27,9 +33,7 @@
     .btn { border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; padding: 10px 16px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
     .btn-primary { background: var(--sky); color: #fff; }
     .btn-primary:active { background: #0369a1; }
-    .btn-green { background: #059669; color: #fff; }
     .btn-dark { background: #1e293b; color: #fff; width: 100%; }
-    .btn-ghost { background: #f1f5f9; color: var(--muted); }
     .card { background: #fff; border: 1px solid #f1f5f9; border-radius: 14px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.04); margin-bottom: 12px; }
     .row-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
     .name { font-weight: 700; }
@@ -44,7 +48,7 @@
     .hp { font-size: 11px; color: #94a3b8; }
     .price { font-weight: 700; color: var(--sky); white-space: nowrap; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
-    select.mini, .actions select { font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; }
+    .actions select { font-size: 12px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: #fff; }
     .chip { font-size: 12px; padding: 7px 12px; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
     .chip-green { background:#059669; color:#fff; }
     .chip-gray { background:#f1f5f9; color:var(--muted); }
@@ -65,10 +69,17 @@
     th.r, td.r { text-align: right; }
     tbody tr { border-top: 1px solid #f8fafc; }
     .tbl-wrap { background:#fff; border:1px solid #f1f5f9; border-radius:14px; overflow:hidden; }
-    .tbl-title { padding: 12px 14px; font-weight: 700; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+    .tbl-title { padding: 12px 14px; font-weight: 700; font-size: 14px; border-bottom: 1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center; }
     .tbl-scroll { overflow-x:auto; }
+    /* manajemen list */
+    .mrow { background:#fff; border:1px solid #f1f5f9; border-radius:12px; padding:12px 14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
+    .mrow .info { flex:1; min-width:0; }
+    .mrow .info b { font-size:14px; }
+    .mrow .meta { font-size:12px; color:var(--muted); margin-top:2px; }
+    .iconbtn { background:#f1f5f9; border:none; border-radius:8px; padding:7px 10px; cursor:pointer; font-size:13px; color:var(--slate); }
+    .iconbtn.red { color:#e11d48; }
     /* modal */
-    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; z-index: 50; padding: 0; }
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
     @media(min-width:600px){ .overlay{ align-items:center; padding:16px; } }
     .modal { background: #fff; width: 100%; max-width: 440px; border-radius: 20px 20px 0 0; max-height: 92vh; overflow-y: auto; }
     @media(min-width:600px){ .modal{ border-radius: 18px; } }
@@ -89,7 +100,6 @@
     .method { border:2px solid var(--line); border-radius:14px; padding:18px; text-align:center; font-weight:600; cursor:pointer; background:#fff; font-size:15px; }
     .method:active { border-color: var(--sky); background:#f0f9ff; }
     .method .ic { font-size:24px; display:block; margin-bottom:6px; }
-    /* struk */
     .receipt { border: 1px dashed #cbd5e1; border-radius: 12px; padding: 18px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
     .receipt .center { text-align: center; }
     .receipt .store { font-weight: 800; font-size: 16px; letter-spacing: 1px; }
@@ -100,6 +110,14 @@
     .rtotal { display:flex; justify-content:space-between; font-weight:800; font-size:15px; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 13px; z-index: 100; opacity: 0; transition: opacity .2s; pointer-events: none; }
     .toast.show { opacity: 1; }
+    /* login */
+    #loginView { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg,#0284c7,#06b6d4); }
+    .login-card { background:#fff; border-radius:20px; padding:28px 24px; width:100%; max-width:360px; box-shadow:0 10px 40px rgba(0,0,0,.2); }
+    .login-card .logo { width:56px; height:56px; border-radius:16px; background:linear-gradient(135deg,#0284c7,#06b6d4); display:grid; place-items:center; font-size:28px; margin:0 auto 12px; }
+    .login-card h2 { text-align:center; font-size:20px; }
+    .login-card p.tag { text-align:center; color:var(--muted); font-size:12px; margin-bottom:18px; }
+    .login-err { background:#ffe4e6; color:#be123c; font-size:13px; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:none; }
+    .hint { text-align:center; font-size:11px; color:#94a3b8; margin-top:14px; }
     @media print {
       body * { visibility: hidden; }
       #receiptPrintable, #receiptPrintable * { visibility: visible; }
@@ -109,38 +127,70 @@
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">👕</div>
-    <div>
-      <h1>LaundryPay</h1>
-      <p>Aplikasi Pembayaran Laundry</p>
-    </div>
-  </header>
-
-  <div class="tabs">
-    <button class="tab active" data-tab="pesanan">📋 Pesanan</button>
-    <button class="tab" data-tab="laporan">📈 Laporan</button>
+  <!-- ================= LOGIN ================= -->
+  <div id="loginView" style="display:none">
+    <form class="login-card" id="loginForm">
+      <div class="logo">👕</div>
+      <h2>LaundryPay</h2>
+      <p class="tag">Masuk untuk melanjutkan</p>
+      <div class="login-err" id="loginErr"></div>
+      <label class="f">Username</label>
+      <input class="inp" id="loginUser" autocomplete="username" placeholder="username" />
+      <label class="f">Password</label>
+      <input class="inp" id="loginPass" type="password" autocomplete="current-password" placeholder="password" />
+      <button class="btn btn-primary" style="width:100%;margin-top:18px" type="submit">Masuk</button>
+      <p class="hint">Akun owner awal — username: <b>owner</b>, password: <b>owner123</b><br>(ganti password setelah masuk)</p>
+    </form>
   </div>
 
-  <div class="wrap">
-    <div id="view-pesanan">
-      <div class="toolbar">
-        <div class="search"><input id="cari" placeholder="Cari nama / no. nota..." /></div>
-        <button class="btn btn-primary" id="btnBaru">+ Baru</button>
+  <!-- ================= APP ================= -->
+  <div id="appView" style="display:none">
+    <header>
+      <div class="logo">👕</div>
+      <div>
+        <h1>LaundryPay</h1>
+        <p>Aplikasi Pembayaran Laundry</p>
       </div>
-      <div id="daftar"></div>
-    </div>
-
-    <div id="view-laporan" style="display:none">
-      <div class="grid" id="stats"></div>
-      <div class="tbl-wrap">
-        <div class="tbl-title" id="tblTitle">Riwayat Transaksi Lunas</div>
-        <div class="tbl-scroll">
-          <table>
-            <thead><tr><th>No. Nota</th><th>Pelanggan</th><th>Tanggal</th><th>Metode</th><th class="r">Total</th></tr></thead>
-            <tbody id="tblBody"></tbody>
-          </table>
+      <div class="userbox">
+        <div class="who">
+          <b id="uName">-</b><br><span class="rolechip" id="uRole">-</span>
         </div>
+        <button class="logout" id="btnLogout">Keluar</button>
+      </div>
+    </header>
+
+    <div class="tabs" id="tabs"></div>
+
+    <div class="wrap">
+      <div id="view-pesanan">
+        <div class="toolbar">
+          <div class="search"><input id="cari" placeholder="Cari nama / no. nota..." /></div>
+          <button class="btn btn-primary" id="btnBaru">+ Baru</button>
+        </div>
+        <div id="daftar"></div>
+      </div>
+
+      <div id="view-laporan" style="display:none">
+        <div class="grid" id="stats"></div>
+        <div class="tbl-wrap">
+          <div class="tbl-title" id="tblTitle">Riwayat Transaksi Lunas</div>
+          <div class="tbl-scroll">
+            <table>
+              <thead><tr><th>No. Nota</th><th>Pelanggan</th><th>Tanggal</th><th>Metode</th><th class="r">Total</th></tr></thead>
+              <tbody id="tblBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="view-layanan" style="display:none">
+        <button class="btn btn-primary" id="btnLayananBaru" style="margin-bottom:14px">+ Layanan Baru</button>
+        <div id="daftarLayanan"></div>
+      </div>
+
+      <div id="view-akun" style="display:none">
+        <button class="btn btn-primary" id="btnAkunBaru" style="margin-bottom:14px">+ Akun Baru</button>
+        <div id="daftarAkun"></div>
       </div>
     </div>
   </div>

@@ -1,6 +1,6 @@
 // sw.js — Service Worker sederhana agar aplikasi bisa dipasang (PWA)
 // dan tetap terbuka saat offline (kerangka aplikasi di-cache).
-const CACHE = "laundrypay-v1";
+const CACHE = "laundrypay-v2";
 const ASSETS = ["/", "/index.html", "/app.js", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
